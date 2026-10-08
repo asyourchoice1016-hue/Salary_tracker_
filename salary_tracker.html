@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Salary Tracker</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f4f6f8;color:#17202a}
+header{background:#17202a;color:white;padding:20px 16px 18px;border-radius:0 0 22px 22px}
+h1{margin:0;font-size:25px}.sub{opacity:.75;margin-top:5px;font-size:13px}
+.container{max-width:720px;margin:auto;padding:14px}
+.card{background:white;border-radius:16px;padding:16px;margin:12px 0;box-shadow:0 3px 12px #0000000d}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.stat{padding:14px;border-radius:13px;background:#f7f8fa}.stat b{display:block;font-size:20px;margin-top:5px}
+label{font-size:12px;color:#65717d;font-weight:bold;display:block;margin:10px 0 5px}
+input,textarea,button{font:inherit}input,textarea{width:100%;padding:11px;border:1px solid #d8dde2;border-radius:10px;background:white}
+textarea{resize:vertical;min-height:60px}
+button{border:0;border-radius:10px;padding:11px 14px;font-weight:bold;cursor:pointer}
+.primary{background:#17202a;color:white;width:100%;margin-top:12px}.secondary{background:#e9edf0}.danger{background:#fee2e2;color:#991b1b}
+.row{display:flex;gap:8px;align-items:center}.row>*{flex:1}
+.entry{border:1px solid #e3e7ea;border-radius:13px;padding:13px;margin:9px 0}
+.entrytop{display:flex;justify-content:space-between;gap:10px}.date{font-weight:bold}.small{font-size:12px;color:#65717d;margin-top:4px}
+.money{font-weight:bold}.balance{margin-top:10px;padding:10px;border-radius:9px;background:#f7f8fa}
+.actions{display:flex;gap:7px;margin-top:10px}.actions button{padding:8px 10px}
+.tabs{display:flex;gap:7px;margin-bottom:10px}.tabs button{background:#e9edf0}.tabs button.active{background:#17202a;color:white}
+.hidden{display:none}.empty{text-align:center;color:#77828c;padding:20px}
+</style>
+</head>
+<body>
+<header><div class="container"><h1>💰 Salary Tracker</h1><div class="sub">Daily salary, payments & owner balance</div></div></header>
+<main class="container">
+<div class="card">
+  <div class="grid">
+    <div class="stat">Your earned<b id="myEarn">₹0</b></div>
+    <div class="stat">Brother earned<b id="broEarn">₹0</b></div>
+    <div class="stat">You owed<b id="myBal">₹0</b></div>
+    <div class="stat">Brother owed<b id="broBal">₹0</b></div>
+  </div>
+  <div class="grid" style="margin-top:10px">
+    <div class="stat">Owner owes you<b id="myBal2">₹0</b></div>
+    <div class="stat">Owner owes brother<b id="broBal2">₹0</b></div>
+  </div>
+</div>
+
+<div class="card">
+  <h3 id="formTitle">Add today's entry</h3>
+  <label>Date</label><input type="date" id="date">
+  <div class="grid">
+    <div><label>Your salary</label><input type="number" id="my" min="0" step="0.01" placeholder="₹"></div>
+    <div><label>Brother's salary</label><input type="number" id="bro" min="0" step="0.01" placeholder="₹"></div>
+  </div>
+  <div class="grid">
+    <div><label>Paid to you</label><input type="number" id="myPaid" min="0" step="0.01" placeholder="₹"></div>
+    <div><label>Paid to brother</label><input type="number" id="broPaid" min="0" step="0.01" placeholder="₹"></div>
+  </div>
+  <label>Note</label><textarea id="note" placeholder="Optional note"></textarea>
+  <button class="primary" id="save">Save entry</button>
+  <button class="secondary hidden" id="cancel" style="width:100%;margin-top:8px">Cancel edit</button>
+</div>
+
+<div class="card">
+  <div class="tabs">
+    <button class="active" id="allTab">All history</button>
+    <button id="monthTab">This month</button>
+  </div>
+  <div id="history"></div>
+</div>
+
+<div class="card">
+  <button class="danger" style="width:100%" id="clear">Delete all history</button>
+</div>
+</main>
+
+<script>
+const KEY='salaryTrackerV1';
+let entries=JSON.parse(localStorage.getItem(KEY)||'[]'), editId=null, monthOnly=false;
+const $=id=>document.getElementById(id);
+const money=n=>'₹'+Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:2});
+function save(){localStorage.setItem(KEY,JSON.stringify(entries));render();}
+function resetForm(){editId=null;$('formTitle').textContent="Add today's entry";$('save').textContent="Save entry";$('cancel').classList.add('hidden');$('date').value=new Date().toISOString().slice(0,10);['my','bro','myPaid','broPaid','note'].forEach(x=>$(x).value='');}
+function render(){
+ let totalMy=0,totalBro=0,paidMy=0,paidBro=0;
+ entries.forEach(e=>{totalMy+=+e.my||0;totalBro+=+e.bro||0;paidMy+=+e.myPaid||0;paidBro+=+e.broPaid||0});
+ $('myEarn').textContent=money(totalMy);$('broEarn').textContent=money(totalBro);
+ let myBalance=Math.max(0,totalMy-paidMy), broBalance=Math.max(0,totalBro-paidBro);
+ $('myBal').textContent=money(myBalance);$('broBal').textContent=money(broBalance);
+ $('myBal2').textContent=money(myBalance);$('broBal2').textContent=money(broBalance);
+ let list=[...entries].sort((a,b)=>b.date.localeCompare(a.date));
+ if(monthOnly){let m=new Date().toISOString().slice(0,7);list=list.filter(e=>e.date.startsWith(m))}
+ $('history').innerHTML=list.length?list.map(e=>{
+  let mb=Math.max(0,(+e.my||0)-(+e.myPaid||0)), bb=Math.max(0,(+e.bro||0)-(+e.broPaid||0));
+  return `<div class="entry"><div class="entrytop"><span class="date">${new Date(e.date+'T00:00:00').toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</span><span class="money">Balance ${money(mb+bb)}</span></div>
+  <div class="small">You: ${money(e.my)} earned · ${money(e.myPaid)} paid · balance ${money(mb)}</div>
+  <div class="small">Brother: ${money(e.bro)} earned · ${money(e.broPaid)} paid · balance ${money(bb)}</div>
+  ${e.note?`<div class="small">📝 ${escapeHtml(e.note)}</div>`:''}
+  <div class="actions"><button class="secondary" onclick="editEntry('${e.id}')">✏️ Edit</button><button class="danger" onclick="deleteEntry('${e.id}')">🗑️ Delete</button></div></div>`
+ }).join(''):'<div class="empty">No salary entries yet.</div>';
+ $('allTab').classList.toggle('active',!monthOnly);$('monthTab').classList.toggle('active',monthOnly);
+}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+$('save').onclick=()=>{
+ let e={id:editId||Date.now().toString(),date:$('date').value,my:+$('my').value||0,bro:+$('bro').value||0,myPaid:+$('myPaid').value||0,broPaid:+$('broPaid').value||0,note:$('note').value.trim()};
+ if(!e.date)return alert('Please select a date.');
+ if(editId)entries=entries.map(x=>x.id===editId?e:x);else entries.push(e);
+ save();resetForm();
+};
+window.editEntry=id=>{let e=entries.find(x=>x.id===id);if(!e)return;editId=id;$('formTitle').textContent='Edit entry';$('save').textContent='Update entry';$('cancel').classList.remove('hidden');$('date').value=e.date;$('my').value=e.my;$('bro').value=e.bro;$('myPaid').value=e.myPaid;$('broPaid').value=e.broPaid;$('note').value=e.note||'';scrollTo({top:0,behavior:'smooth'})};
+window.deleteEntry=id=>{if(confirm('Delete this entry?')){entries=entries.filter(e=>e.id!==id);save()}};
+$('cancel').onclick=resetForm;
+$('allTab').onclick=()=>{monthOnly=false;render()};$('monthTab').onclick=()=>{monthOnly=true;render()};
+$('clear').onclick=()=>{if(entries.length&&confirm('Delete ALL salary history? This cannot be undone.')){entries=[];save()}};
+resetForm();render();
+</script>
+</body>
+</html>

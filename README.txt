@@ -1,0 +1,1 @@
+Upload index.html, manifest.webmanifest and sw.js to the ROOT of your GitHub repository. Then enable GitHub Pages.
